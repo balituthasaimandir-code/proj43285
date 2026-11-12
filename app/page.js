@@ -36,16 +36,95 @@ function Sos() {
 
 function Radar() {
   const [position, setPosition] = useState(null);
-  const [status, setStatus] = useState("Allow location to show your position for evacuation planning.");
+  const [radiusKm, setRadiusKm] = useState(100);
+  const [events, setEvents] = useState([]);
+  const [checkedAt, setCheckedAt] = useState(null);
+  const [sources, setSources] = useState(null);
+  const [status, setStatus] = useState("Share your location to check current reports near you.");
+  const [loading, setLoading] = useState(false);
+  const [offline, setOffline] = useState(false);
+
+  useEffect(() => {
+    const onOnline = () => setOffline(false);
+    const onOffline = () => setOffline(true);
+    setOffline(!navigator.onLine);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => { window.removeEventListener("online", onOnline); window.removeEventListener("offline", onOffline); };
+  }, []);
+
   function locate() {
     if (!navigator.geolocation) { setStatus("Location is unavailable on this device."); return; }
-    setStatus("Finding your location…");
-    navigator.geolocation.getCurrentPosition((p) => { setPosition(p.coords); setStatus("Your location is ready to share with responders."); }, () => setStatus("Location permission was unavailable. You can still use the safety guidance below."), { enableHighAccuracy: true, timeout: 10000 });
+    setStatus("Finding your location...");
+    navigator.geolocation.getCurrentPosition((p) => setPosition({ latitude: p.coords.latitude, longitude: p.coords.longitude }), () => setStatus("Location permission was unavailable. Allow location to find reports near you."), { enableHighAccuracy: true, timeout: 10000 });
   }
+
+  useEffect(() => {
+    if (!position) return undefined;
+    const key = `saferoute-nearby-${radiusKm}-${position.latitude.toFixed(2)}-${position.longitude.toFixed(2)}`;
+    let active = true;
+    const controller = new AbortController();
+    setEvents([]);
+    setCheckedAt(null);
+    setSources(null);
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || "null");
+      if (saved?.events) {
+        setEvents(saved.events);
+        setCheckedAt(saved.checkedAt);
+        setSources(saved.sources);
+        setStatus("Showing the last saved reports while checking for updates.");
+      }
+    } catch {}
+
+    async function refresh() {
+      if (!navigator.onLine) {
+        setStatus("Offline. Showing the last saved reports; they may be out of date.");
+        return;
+      }
+      setLoading(true);
+      try {
+        const query = new URLSearchParams({ lat: position.latitude, lon: position.longitude, radius: radiusKm });
+        const response = await fetch(`/api/nearby?${query}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("Live hazard data is temporarily unavailable.");
+        const result = await response.json();
+        if (!active) return;
+        setEvents(result.events || []);
+        setCheckedAt(result.updatedAt);
+        setSources(result.sources);
+        const hasSource = result.sources?.gdacs || result.sources?.usgs;
+        const message = !hasSource ? "Live sources are unavailable. Check the official alert links below." : result.sources.gdacs && result.sources.usgs ? "Nearby reports refreshed from both live sources." : "Nearby reports refreshed; one live source is unavailable.";
+        setStatus(message);
+        try { localStorage.setItem(key, JSON.stringify({ events: result.events || [], checkedAt: result.updatedAt, sources: result.sources })); } catch {}
+      } catch (error) {
+        if (!active || error.name === "AbortError") return;
+        setStatus("Live data could not be reached. Showing any saved reports; check official alerts below.");
+      } finally { if (active) setLoading(false); }
+    }
+    refresh();
+    const timer = window.setInterval(refresh, 5 * 60 * 1000);
+    return () => { active = false; controller.abort(); window.clearInterval(timer); };
+  }, [position?.latitude, position?.longitude, radiusKm]);
+
+  const typeInfo = { EQ: ["Earthquake", "〰️"], TC: ["Cyclone", "🌀"], FL: ["Flood", "🌊"], WF: ["Wildfire", "🔥"], VO: ["Volcano", "🌋"] };
+  const locationUrl = position ? `https://maps.google.com/?q=${position.latitude},${position.longitude}` : "#";
+
   return <section>
-    <div className="radar-head"><div><span className="eyebrow">EVACUATION RADAR</span><h2>Find your way to safety</h2><p>Share your live coordinates and follow official evacuation instructions.</p></div><div className="radar-art" aria-hidden="true"><span>⌖</span><i/><b/></div></div>
-    <div className="panel radar-panel"><button onClick={locate}>◎ {position ? "Refresh my location" : "Locate me"}</button><p role="status" className="status">{status}</p>{position && <div className="coords"><strong>Your coordinates</strong><span>{position.latitude.toFixed(5)}, {position.longitude.toFixed(5)}</span><a href={`https://maps.google.com/?q=${position.latitude},${position.longitude}`} target="_blank" rel="noreferrer">Open in Maps ↗</a></div>}</div>
-    <div className="notice"><strong>Evacuation tip</strong><p>Use marked routes and official shelters. Never enter floodwater; move to higher ground when flooding threatens. This app does not have live shelter or hazard data.</p></div>
+    <div className="radar-head"><div><span className="eyebrow">LIVE HAZARD RADAR</span><h2>Nearby reported hazards</h2><p>Check official event reports around your current location.</p></div><div className="radar-art" aria-hidden="true"><span>⌖</span><i/><b/></div></div>
+    <div className="panel radar-panel">
+      <div className="radar-controls"><button onClick={locate}>{position ? "Refresh my location" : "Use my location"}</button><label>Search radius<select value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))}><option value={100}>100 km</option><option value={250}>250 km</option><option value={500}>500 km</option></select></label></div>
+      <p role="status" className="status">{loading ? "Checking live reports..." : status}</p>
+      {position && <div className="coords"><strong>Search centered near you</strong><span>{position.latitude.toFixed(4)}, {position.longitude.toFixed(4)} · {radiusKm} km</span><a href={locationUrl} target="_blank" rel="noreferrer">Open location in Maps</a></div>}
+      {checkedAt && <p className="checked-at">Last checked {new Date(checkedAt).toLocaleString()}{offline ? " · Offline; reports may be stale" : ""}</p>}
+      {position && <div className="hazard-results" aria-live="polite">
+        {events.length ? events.map((event) => {
+          const [label, icon] = typeInfo[event.type] || [event.type, "⚠️"];
+          return <article className="hazard-card" key={event.id}><span className="hazard-icon" aria-hidden="true">{icon}</span><div className="hazard-info"><div className="hazard-title"><strong>{event.name}</strong>{event.alertLevel && <span className={`alert-tag alert-${event.alertLevel.toLowerCase()}`}>{event.alertLevel}</span>}</div><p>{label} · {event.detail}</p><small>{event.distanceKm} km away · {event.source}{event.time ? ` · ${new Date(event.time).toLocaleDateString()}` : ""}</small></div><a href={event.url} target="_blank" rel="noreferrer" aria-label={`View ${event.name} source`}>↗</a></article>;
+        }) : position && !loading && <div className="empty-hazards"><strong>{offline ? "No saved reports are available for this area yet." : sources?.gdacs || sources?.usgs ? `No active reports found in ${radiusKm} km.` : "Live reports are temporarily unavailable."}</strong><p>This feed may not include every local warning. Check official alerts before making safety decisions.</p></div>}
+      </div>}
+      {sources && <p className="source-status">Sources: {sources.gdacs ? "GDACS global hazards" : "GDACS unavailable"} · {sources.usgs ? "USGS earthquakes" : "USGS unavailable"}</p>}
+    </div>
+    <div className="notice"><strong>Reports are not predictions</strong><p>Earthquakes cannot currently be predicted. These feeds show reported events, not a forecast that a disaster will reach you. Distance is measured from the reported location and does not describe the affected area. Follow official instructions.</p><p className="official-links"><a href="https://sachet.ndma.gov.in/" target="_blank" rel="noreferrer">India NDMA SACHET alerts</a><a href="https://www.gdacs.org/" target="_blank" rel="noreferrer">GDACS global alerts</a></p></div>
   </section>;
 }
 
