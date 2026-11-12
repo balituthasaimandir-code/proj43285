@@ -1,0 +1,22 @@
+name: Nearby hazard push alerts
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan-and-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check nearby hazards and send push notifications
+        env:
+          PUSH_CRON_SECRET: ${{ secrets.PUSH_CRON_SECRET }}
+        run: >-
+          curl --fail-with-body --silent --show-error
+          --request POST
+          --header "Authorization: Bearer ${PUSH_CRON_SECRET}"
+          https://saferouteplus.vercel.app/api/push/scan

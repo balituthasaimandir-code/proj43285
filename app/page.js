@@ -45,6 +45,13 @@ function Radar() {
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("saferoute-alert-settings") || "null");
+      if (saved?.enabled) setPosition({ latitude: saved.latitude, longitude: saved.longitude });
+    } catch {}
+  }, []);
+
+  useEffect(() => {
     const onOnline = () => setOffline(false);
     const onOffline = () => setOffline(true);
     setOffline(!navigator.onLine);
@@ -124,8 +131,85 @@ function Radar() {
       </div>}
       {sources && <p className="source-status">Sources: {sources.gdacs ? "GDACS global hazards" : "GDACS unavailable"} · {sources.usgs ? "USGS earthquakes" : "USGS unavailable"}</p>}
     </div>
+    <NotificationControls position={position}/>
     <div className="notice"><strong>Reports are not predictions</strong><p>Earthquakes cannot currently be predicted. These feeds show reported events, not a forecast that a disaster will reach you. Distance is measured from the reported location and does not describe the affected area. Follow official instructions.</p><p className="official-links"><a href="https://sachet.ndma.gov.in/" target="_blank" rel="noreferrer">India NDMA SACHET alerts</a><a href="https://www.gdacs.org/" target="_blank" rel="noreferrer">GDACS global alerts</a></p></div>
   </section>;
+}
+
+function base64UrlToBytes(value) {
+  const padding = "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = window.atob(base64);
+  return Uint8Array.from([...raw].map((char) => char.charCodeAt(0)));
+}
+
+function NotificationControls({ position }) {
+  const [configured, setConfigured] = useState(false);
+  const [publicKey, setPublicKey] = useState("");
+  const [enabled, setEnabled] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    try { setEnabled(!!JSON.parse(localStorage.getItem("saferoute-alert-settings") || "null")?.enabled); } catch {}
+    fetch("/api/push/key").then(async (response) => {
+      if (!response.ok) return;
+      const data = await response.json();
+      setConfigured(!!data.configured);
+      setPublicKey(data.publicKey || "");
+    }).catch(() => {});
+  }, []);
+
+  async function enable() {
+    if (!position) { setMessage("Locate yourself first so alerts use the right area."); return; }
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) { setMessage("This browser does not support push notifications."); return; }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") { setMessage("Allow notifications in browser settings to receive alerts."); return; }
+      if (!configured || !publicKey) { setMessage("Background push service is not configured yet."); return; }
+      await navigator.serviceWorker.register("/sw.js");
+      const registration = await navigator.serviceWorker.ready;
+      if (!registration.pushManager) { setMessage("This browser does not support background push."); return; }
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlToBytes(publicKey) });
+      const latitude = Number(position.latitude.toFixed(2));
+      const longitude = Number(position.longitude.toFixed(2));
+      const response = await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscription, latitude, longitude }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not save your alert settings.");
+      localStorage.setItem("saferoute-alert-settings", JSON.stringify({ enabled: true, latitude, longitude, radiusKm: 500 }));
+      setEnabled(true);
+      setMessage("Automatic alerts are on. New reports within 500 km can notify you even when this app is closed.");
+    } catch (error) { setMessage(error.message || "Could not enable notifications."); }
+  }
+
+  async function disable() {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        const response = await fetch("/api/push/subscribe", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: subscription.endpoint }) });
+        if (!response.ok) throw new Error("Could not turn alerts off on the server. Try again.");
+        await subscription.unsubscribe();
+      }
+      localStorage.removeItem("saferoute-alert-settings");
+      setEnabled(false);
+      setMessage("Automatic alerts are off.");
+    } catch (error) { setMessage(error.message || "Could not turn alerts off."); }
+  }
+
+  async function demo() {
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) { setMessage("This browser does not support notifications."); return; }
+    try {
+      const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+      if (permission !== "granted") { setMessage("Allow notifications in browser settings to try the demo."); return; }
+      await navigator.serviceWorker.register("/sw.js");
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification("SafeRoutePlus demo notification", { body: "Demo only. This is not a real disaster alert.", icon: "/saferouteplus-icon.svg", tag: "saferouteplus-demo", data: { url: "/?notification=demo" } });
+      setMessage("Demo notification sent. This is not a real alert.");
+    } catch { setMessage("Could not show the demo. Check your browser notification settings."); }
+  }
+
+  return <div className="panel notification-panel"><span className="eyebrow">BACKGROUND ALERTS</span><h3>500 km notifications</h3><p>Get a push notification for new nearby reports, including when SafeRoutePlus is closed. Your saved location is stored to calculate the distance.</p><div className="row">{enabled ? <button className="ghost" onClick={disable}>Turn off alerts</button> : <button disabled={!position || !configured} onClick={enable}>{!position ? "Locate yourself first" : configured ? "Enable automatic alerts" : "Push setup required"}</button>}<button className="ghost" onClick={demo}>Send demo notification</button></div>{message && <p role="status" className="status">{message}</p>}{!configured && <p className="setup-note">Closed-app delivery needs server keys and an active scheduled monitor. The demo works without them.</p>}</div>;
 }
 
 function Guides() {
@@ -149,6 +233,7 @@ function About() {
 export default function Home() {
   const [tab, setTab] = useState("sos"); const [theme, setTheme] = useState("light");
   useEffect(() => { const saved = localStorage.getItem("saferoute-theme"); if (saved) setTheme(saved); }, []);
+  useEffect(() => { if (new URLSearchParams(window.location.search).has("notification")) setTab("radar"); }, []);
   useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem("saferoute-theme", theme); } catch {} }, [theme]);
   return <><header className="top"><a className="brand" href="#home" onClick={() => setTab("sos")}><span className="brand-icon">S+</span><span><strong>SafeRoutePlus</strong><small>Emergency &amp; disaster guide</small></span></a><div className="header-actions"><InstallApp/><button className="theme-toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "day"} mode`}>{theme === "light" ? "☾" : "☀"}<span>{theme === "light" ? "Dark" : "Day"}</span></button></div></header><main>{tab === "sos" && <Sos/>}{tab === "radar" && <Radar/>}{tab === "guides" && <Guides/>}{tab === "kit" && <Kit/>}{tab === "about" && <About/>}</main><nav className="nav" aria-label="Sections">{TABS.map(([id, label]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span className="nav-icon" aria-hidden="true">{{sos:"✚",radar:"⌖",guides:"▤",kit:"✓",about:"ⓘ"}[id]}</span>{label}</button>)}</nav></>;
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = "saferouteplus-offline-v3";
+const CACHE_NAME = "saferouteplus-offline-v5";
 const PUBLIC_FILES = ["/manifest.json", "/saferouteplus-icon.svg", "/saferouteplus.png"];
 const STATIC_PATH = "/_next/static/";
 
@@ -57,6 +57,28 @@ self.addEventListener("message", (event) => {
   if (event.data?.type !== "CHECK_OFFLINE_READY") return;
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.match("/")).then((page) => {
     event.source?.postMessage({ type: page ? "OFFLINE_READY" : "OFFLINE_NOT_READY", version: CACHE_NAME });
+  }));
+});
+
+self.addEventListener("push", (event) => {
+  let payload = { title: "SafeRoutePlus alert", body: "A new nearby hazard report is available.", url: "/" };
+  try { if (event.data) payload = { ...payload, ...event.data.json() }; } catch {}
+  event.waitUntil(self.registration.showNotification(payload.title, {
+    body: payload.body,
+    icon: "/saferouteplus-icon.svg",
+    badge: "/saferouteplus-icon.svg",
+    tag: payload.tag || "saferouteplus-hazard",
+    data: { url: payload.url || "/" },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
+    const existing = clients.find((client) => new URL(client.url).origin === self.location.origin);
+    if (existing) { await existing.navigate(url); return existing.focus(); }
+    return self.clients.openWindow(url);
   }));
 });
 
