@@ -1,0 +1,13 @@
+{
+  "name": "SafeRoutePlus — Emergency & Disaster Guide",
+  "short_name": "SafeRoutePlus",
+  "description": "Emergency calls, SOS messages, and disaster safety guidance.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f6f3",
+  "theme_color": "#14785b",
+  "icons": [
+    { "src": "/saferouteplus-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

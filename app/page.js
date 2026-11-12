@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { CONTACTS, GUIDES, KIT } from "./data";
+import InstallApp from "./InstallApp";
 
 const TABS = [["sos", "SOS"], ["radar", "Radar"], ["guides", "Guides"], ["kit", "Go-bag"], ["about", "About"]];
 
@@ -70,5 +71,5 @@ export default function Home() {
   const [tab, setTab] = useState("sos"); const [theme, setTheme] = useState("light");
   useEffect(() => { const saved = localStorage.getItem("saferoute-theme"); if (saved) setTheme(saved); }, []);
   useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem("saferoute-theme", theme); } catch {} }, [theme]);
-  return <><header className="top"><a className="brand" href="#home" onClick={() => setTab("sos")}><span className="brand-icon">S+</span><span><strong>SafeRoutePlus</strong><small>Emergency &amp; disaster guide</small></span></a><button className="theme-toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "day"} mode`}>{theme === "light" ? "☾" : "☀"}<span>{theme === "light" ? "Dark" : "Day"}</span></button></header><main>{tab === "sos" && <Sos/>}{tab === "radar" && <Radar/>}{tab === "guides" && <Guides/>}{tab === "kit" && <Kit/>}{tab === "about" && <About/>}</main><nav className="nav" aria-label="Sections">{TABS.map(([id, label]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span className="nav-icon" aria-hidden="true">{{sos:"✚",radar:"⌖",guides:"▤",kit:"✓",about:"ⓘ"}[id]}</span>{label}</button>)}</nav></>;
+  return <><header className="top"><a className="brand" href="#home" onClick={() => setTab("sos")}><span className="brand-icon">S+</span><span><strong>SafeRoutePlus</strong><small>Emergency &amp; disaster guide</small></span></a><div className="header-actions"><InstallApp/><button className="theme-toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "day"} mode`}>{theme === "light" ? "☾" : "☀"}<span>{theme === "light" ? "Dark" : "Day"}</span></button></div></header><main>{tab === "sos" && <Sos/>}{tab === "radar" && <Radar/>}{tab === "guides" && <Guides/>}{tab === "kit" && <Kit/>}{tab === "about" && <About/>}</main><nav className="nav" aria-label="Sections">{TABS.map(([id, label]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span className="nav-icon" aria-hidden="true">{{sos:"✚",radar:"⌖",guides:"▤",kit:"✓",about:"ⓘ"}[id]}</span>{label}</button>)}</nav></>;
 }
