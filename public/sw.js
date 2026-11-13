@@ -1,5 +1,5 @@
-const CACHE_NAME = "saferouteplus-offline-v5";
-const PUBLIC_FILES = ["/manifest.json", "/saferouteplus-icon.svg", "/saferouteplus.png"];
+const CACHE_NAME = "saferouteplus-offline-v6";
+const PUBLIC_FILES = ["/manifest.json", "/saferouteplus-icon.svg", "/saferouteplus.png", "/newappqr.png"];
 const STATIC_PATH = "/_next/static/";
 
 async function precacheApp() {
