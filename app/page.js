@@ -2,10 +2,12 @@
 import { useEffect, useState } from "react";
 import { CONTACTS, GUIDES, KIT } from "./data";
 import InstallApp from "./InstallApp";
+import { LANGUAGES, LanguageContext, translate, useLanguage } from "./i18n";
 
 const TABS = [["sos", "SOS"], ["radar", "Radar"], ["guides", "Guides"], ["kit", "Go-bag"], ["about", "About"]];
 
 function Sos() {
+  const { tx } = useLanguage();
   const [status, setStatus] = useState("");
   const [message, setMessage] = useState("");
   async function copyMessage(withLocation) {
@@ -25,8 +27,8 @@ function Sos() {
   function saveNote(value) { setNote(value); try { localStorage.setItem("saferoute-note", value); } catch {} }
   return <>
     <section className="hero emergency-hero">
-      <div><span className="eyebrow">NEED HELP NOW?</span><h2>Emergency help</h2><p>Call the national emergency number or choose a service below.</p></div>
-      <a className="sos-button" href={`tel:${CONTACTS.find((c) => c.primary)?.number || "112"}`}><span aria-hidden>☎</span> CALL SOS <small>{CONTACTS.find((c) => c.primary)?.number || "112"}</small></a>
+      <div><span className="eyebrow">{tx("NEED HELP NOW?")}</span><h2>{tx("Emergency help")}</h2><p>{tx("Call the national emergency number or choose a service below.")}</p></div>
+      <a className="sos-button" href={`tel:${CONTACTS.find((c) => c.primary)?.number || "112"}`}><span aria-hidden>!</span> CALL SOS <small>{CONTACTS.find((c) => c.primary)?.number || "112"}</small></a>
     </section>
     <section><h2>Emergency numbers</h2><ul className="contacts">{CONTACTS.map((c) => <li key={c.number}><a className={c.primary ? "call primary" : "call"} href={`tel:${c.number}`}><span>{c.label}{c.note && <small>{c.note}</small>}</span><strong>{c.number}</strong></a></li>)}</ul></section>
     <section className="panel"><h2>Generate an SOS message</h2><p>Copy a ready-made distress message to share with family or responders.</p><div className="row"><button onClick={() => copyMessage(true)}>Copy with my location</button><button className="ghost" onClick={() => copyMessage(false)}>Copy message only</button></div><p role="status" className="status">{status}</p>{message && <pre className="msg">{message}</pre>}</section>
@@ -35,6 +37,7 @@ function Sos() {
 }
 
 function Radar() {
+  const { tx } = useLanguage();
   const [position, setPosition] = useState(null);
   const [radiusKm, setRadiusKm] = useState(100);
   const [events, setEvents] = useState([]);
@@ -113,11 +116,11 @@ function Radar() {
     return () => { active = false; controller.abort(); window.clearInterval(timer); };
   }, [position?.latitude, position?.longitude, radiusKm]);
 
-  const typeInfo = { EQ: ["Earthquake", "〰️"], TC: ["Cyclone", "🌀"], FL: ["Flood", "🌊"], WF: ["Wildfire", "🔥"], VO: ["Volcano", "🌋"] };
+  const typeInfo = { EQ: ["Earthquake", "E"], TC: ["Cyclone", "C"], FL: ["Flood", "F"], WF: ["Wildfire", "W"], VO: ["Volcano", "V"] };
   const locationUrl = position ? `https://maps.google.com/?q=${position.latitude},${position.longitude}` : "#";
 
   return <section>
-    <div className="radar-head"><div><span className="eyebrow">LIVE HAZARD RADAR</span><h2>Nearby reported hazards</h2><p>Check official event reports around your current location.</p></div><div className="radar-art" aria-hidden="true"><span>⌖</span><i/><b/></div></div>
+    <div className="radar-head"><div><span className="eyebrow">LIVE HAZARD RADAR</span><h2>Nearby reported hazards</h2><p>Check official event reports around your current location.</p></div><div className="radar-art" aria-hidden="true"><span>+</span><i/><b/></div></div>
     <div className="panel radar-panel">
       <div className="radar-controls"><button onClick={locate}>{position ? "Refresh my location" : "Use my location"}</button><label>Search radius<select value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))}><option value={100}>100 km</option><option value={250}>250 km</option><option value={500}>500 km</option></select></label></div>
       <p role="status" className="status">{loading ? "Checking live reports..." : status}</p>
@@ -144,6 +147,7 @@ function base64UrlToBytes(value) {
 }
 
 function NotificationControls({ position }) {
+  const { tx } = useLanguage();
   const [configured, setConfigured] = useState(false);
   const [publicKey, setPublicKey] = useState("");
   const [enabled, setEnabled] = useState(false);
@@ -213,27 +217,34 @@ function NotificationControls({ position }) {
 }
 
 function Guides() {
+  const { tx } = useLanguage();
   const [key, setKey] = useState("Earthquake"); const g = GUIDES[key];
-  return <section><span className="eyebrow">BE PREPARED</span><h2>Disaster guides</h2><div className="disaster-grid">{Object.entries(GUIDES).map(([name, v]) => <button key={name} className={`disaster-card ${key === name ? "selected" : ""} art-${v.art}`} onClick={() => setKey(name)} aria-pressed={key === name}><span className="disaster-art" aria-hidden="true">{v.icon}</span><strong>{name}</strong><span className="card-arrow">↗</span></button>)}</div><div className="guide-detail"><span className="eyebrow">{g.tagline}</span><h2>{g.icon} {key}</h2><ol className="steps">{g.steps.map(([title, body]) => <li key={title}><h3>{title}</h3><p>{body}</p></li>)}</ol></div></section>;
+  return <section><span className="eyebrow">{tx("BE PREPARED")}</span><h2>{tx("Disaster guides")}</h2><div className="disaster-grid">{Object.entries(GUIDES).map(([name, v]) => <button key={name} className={`disaster-card ${key === name ? "selected" : ""} art-${v.art}`} onClick={() => setKey(name)} aria-pressed={key === name}><span className="disaster-art" aria-hidden="true">{v.icon}</span><strong>{tx(name)}</strong><span className="card-arrow">↗</span></button>)}</div><div className="guide-detail"><span className="eyebrow">{tx(g.tagline)}</span><h2>{g.icon} {tx(key)}</h2><ol className="steps">{g.steps.map(([title, body]) => <li key={title}><h3>{tx(title)}</h3><p>{tx(body)}</p></li>)}</ol></div></section>;
 }
 
 function Kit() {
+  const { tx } = useLanguage();
   const [done, setDone] = useState({}); const [ready, setReady] = useState(false);
   useEffect(() => { try { setDone(JSON.parse(localStorage.getItem("saferoute-kit") || "{}")); } catch {} setReady(true); }, []);
   useEffect(() => { if (ready) try { localStorage.setItem("saferoute-kit", JSON.stringify(done)); } catch {} }, [done, ready]);
   const count = KIT.filter((i) => done[i]).length;
-  return <section><span className="eyebrow">PACK AHEAD</span><h2>Go-bag checklist</h2><p>Tick items off as you pack them. Your progress is saved on this device.</p><div className="meter" role="progressbar" aria-valuemin={0} aria-valuemax={KIT.length} aria-valuenow={count}><div style={{ width: `${(count / KIT.length) * 100}%` }} /></div><p className="count">{count} of {KIT.length} packed</p><ul className="kit">{KIT.map((item) => <li key={item}><label><input type="checkbox" checked={!!done[item]} onChange={(e) => setDone({ ...done, [item]: e.target.checked })}/><span>{item}</span></label></li>)}</ul>{count === KIT.length && <p className="done">Your go-bag is fully packed.</p>}{count > 0 && <button className="ghost" onClick={() => setDone({})}>Reset checklist</button>}</section>;
+  return <section><span className="eyebrow">{tx("PACK AHEAD")}</span><h2>{tx("Go-bag checklist")}</h2><p>{tx("Tick items off as you pack them. Your progress is saved on this device.")}</p><div className="meter" role="progressbar" aria-valuemin={0} aria-valuemax={KIT.length} aria-valuenow={count}><div style={{ width: `${(count / KIT.length) * 100}%` }} /></div><p className="count">{tx("{count} of {total} packed").replace("{count}", count).replace("{total}", KIT.length)}</p><ul className="kit">{KIT.map((item) => <li key={item}><label><input type="checkbox" checked={!!done[item]} onChange={(e) => setDone({ ...done, [item]: e.target.checked })}/><span>{tx(item)}</span></label></li>)}</ul>{count === KIT.length && <p className="done">{tx("Your go-bag is fully packed.")}</p>}{count > 0 && <button className="ghost" onClick={() => setDone({})}>{tx("Reset checklist")}</button>}</section>;
 }
 
 function About() {
+  const { tx } = useLanguage();
   const url = "https://saferouteplus.vercel.app";
-  return <section><span className="eyebrow">ABOUT THIS PROJECT</span><h2>SafeRoutePlus</h2><div className="about-card"><div className="about-copy"><span className="about-mark">S+</span><h3>Made to help in an emergency.</h3><p>A quick access companion for emergency calls, SOS messages, disaster guidance and preparedness.</p><strong>Created by Sai Sankar Dash</strong></div><div className="qr-card"><h3>Open SafeRoutePlus</h3><a href={url} target="_blank" rel="noreferrer"><img src="/newappqr.png" alt={`QR code linking to ${url}`} width="180" height="180"/></a><a href={url} target="_blank" rel="noreferrer">{url}</a><small>Scan with your phone camera</small></div></div><div className="notice"><strong>Share SafeRoutePlus</strong><p>Scan the QR code or visit <a href={url} target="_blank" rel="noreferrer">saferouteplus.vercel.app</a>.</p></div></section>;
+  return <section><span className="eyebrow">{tx("ABOUT THIS PROJECT")}</span><h2>SafeRoutePlus</h2><div className="about-card"><div className="about-copy"><span className="about-mark">S+</span><h3>{tx("Made to help in an emergency.")}</h3><p>{tx("A quick access companion for emergency calls, SOS messages, disaster guidance and preparedness.")}</p><strong>{tx("Created by Sai Sankar Dash")}</strong></div><div className="qr-card"><h3>{tx("Open SafeRoutePlus")}</h3><a href={url} target="_blank" rel="noreferrer"><img src="/newappqr.png" alt={`QR code linking to ${url}`} width="180" height="180"/></a><a href={url} target="_blank" rel="noreferrer">{url}</a><small>{tx("Scan with your phone camera")}</small></div></div><div className="notice"><strong>{tx("Share SafeRoutePlus")}</strong><p>{tx("Scan the QR code or visit")} <a href={url} target="_blank" rel="noreferrer">saferouteplus.vercel.app</a>.</p></div></section>;
 }
 
 export default function Home() {
   const [tab, setTab] = useState("sos"); const [theme, setTheme] = useState("light");
+  const [lang, setLang] = useState("en");
+  const tx = (text) => translate(lang, text);
+  useEffect(() => { const saved = localStorage.getItem("saferoute-language"); if (saved && LANGUAGES.some((item) => item.code === saved)) setLang(saved); }, []);
+  useEffect(() => { document.documentElement.lang = LANGUAGES.find((item) => item.code === lang)?.document || "en"; try { localStorage.setItem("saferoute-language", lang); } catch {} }, [lang]);
   useEffect(() => { const saved = localStorage.getItem("saferoute-theme"); if (saved) setTheme(saved); }, []);
   useEffect(() => { if (new URLSearchParams(window.location.search).has("notification")) setTab("radar"); }, []);
   useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem("saferoute-theme", theme); } catch {} }, [theme]);
-  return <><header className="top"><a className="brand" href="#home" onClick={() => setTab("sos")}><span className="brand-icon">S+</span><span><strong>SafeRoutePlus</strong><small>Emergency &amp; disaster guide</small></span></a><div className="header-actions"><InstallApp/><button className="theme-toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "day"} mode`}>{theme === "light" ? "☾" : "☀"}<span>{theme === "light" ? "Dark" : "Day"}</span></button></div></header><main>{tab === "sos" && <Sos/>}{tab === "radar" && <Radar/>}{tab === "guides" && <Guides/>}{tab === "kit" && <Kit/>}{tab === "about" && <About/>}</main><nav className="nav" aria-label="Sections">{TABS.map(([id, label]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span className="nav-icon" aria-hidden="true">{{sos:"✚",radar:"⌖",guides:"▤",kit:"✓",about:"ⓘ"}[id]}</span>{label}</button>)}</nav></>;
+  return <LanguageContext.Provider value={{ lang, setLang, tx }}><header className="top"><a className="brand" href="#home" onClick={() => setTab("sos")}><span className="brand-icon">S<span>+</span></span><span><strong>SafeRoute<span>Plus</span></strong><small>{tx("Prepared for the unexpected")}</small></span></a><div className="header-actions"><label className="language-picker"><span>{tx("Language")}</span><select aria-label={tx("Choose language")} value={lang} onChange={(event) => setLang(event.target.value)}>{LANGUAGES.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></label><InstallApp/><button className="theme-toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "day"} mode`}>{theme === "light" ? "D" : "L"}<span>{tx(theme === "light" ? "Dark" : "Day")}</span></button></div></header><main><div className="page-intro"><div><span className="eyebrow">{tx("YOUR SAFETY COMPANION")}</span><h1>{tx(tab === "sos" ? "Ready when it matters." : TABS.find(([id]) => id === tab)?.[1])}</h1><p>{tx(tab === "sos" ? "Quick help, trusted guidance, and a little more peace of mind." : "A few simple steps can make a real difference.")}</p></div><span className="today-badge"><i/> {tx("READY TO HELP")}</span></div>{tab === "sos" && <Sos/>}{tab === "radar" && <Radar/>}{tab === "guides" && <Guides/>}{tab === "kit" && <Kit/>}{tab === "about" && <About/>}</main><nav className="nav" aria-label={tx("Sections")}>{TABS.map(([id, label]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span className="nav-icon" aria-hidden="true">{{sos:"+",radar:"R",guides:"G",kit:"K",about:"i"}[id]}</span>{tx(label)}</button>)}</nav></LanguageContext.Provider>;
 }
