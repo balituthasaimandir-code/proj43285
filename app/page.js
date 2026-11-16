@@ -8,6 +8,7 @@ const TABS = [["sos", "SOS"], ["radar", "Radar"], ["guides", "Guides"], ["kit", 
 function Sos() {
   const [status, setStatus] = useState("");
   const [message, setMessage] = useState("");
+  const [locationLink, setLocationLink] = useState("");
   async function copyMessage(withLocation) {
     let text = "EMERGENCY! I need immediate help. Please send assistance.";
     if (withLocation && navigator.geolocation) {
@@ -20,6 +21,26 @@ function Sos() {
     try { await navigator.clipboard.writeText(text); setStatus((s) => s || "Message copied. Paste it into a text or chat."); }
     catch { setStatus("Copy failed. Select and copy the message below."); }
   }
+  async function shareLocation() {
+    if (!navigator.geolocation) { setStatus("Location is unavailable on this device."); return; }
+    setStatus("Getting your location…");
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const url = `https://maps.google.com/?q=${position.coords.latitude},${position.coords.longitude}`;
+      setLocationLink(url);
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: "My current location", text: "Here is my current location. Please send help if needed.", url });
+          setStatus("Location shared.");
+        } else {
+          await navigator.clipboard.writeText(url);
+          setStatus("Map link copied. Paste it into a message to share your location.");
+        }
+      } catch (error) {
+        if (error.name === "AbortError") { setStatus("Sharing cancelled. You can still open or copy the map link below."); return; }
+        setStatus("Could not open sharing. Copy or open the map link below.");
+      }
+    }, () => setStatus("Could not get your location. Allow location access and try again."), { enableHighAccuracy: true, timeout: 12000 });
+  }
   const [note, setNote] = useState("");
   useEffect(() => { setNote(localStorage.getItem("saferoute-note") || ""); }, []);
   function saveNote(value) { setNote(value); try { localStorage.setItem("saferoute-note", value); } catch {} }
@@ -29,7 +50,7 @@ function Sos() {
       <a className="sos-button" href={`tel:${CONTACTS.find((c) => c.primary)?.number || "112"}`}><span aria-hidden>☎</span> CALL SOS <small>{CONTACTS.find((c) => c.primary)?.number || "112"}</small></a>
     </section>
     <section><h2>Emergency numbers</h2><ul className="contacts">{CONTACTS.map((c) => <li key={c.number}><a className={c.primary ? "call primary" : "call"} href={`tel:${c.number}`}><span>{c.label}{c.note && <small>{c.note}</small>}</span><strong>{c.number}</strong></a></li>)}</ul></section>
-    <section className="panel"><h2>Generate an SOS message</h2><p>Copy a ready-made distress message to share with family or responders.</p><div className="row"><button onClick={() => copyMessage(true)}>Copy with my location</button><button className="ghost" onClick={() => copyMessage(false)}>Copy message only</button></div><p role="status" className="status">{status}</p>{message && <pre className="msg">{message}</pre>}</section>
+    <section className="panel"><h2>Generate an SOS message</h2><p>Copy a ready-made distress message to share with family or responders.</p><div className="row"><button onClick={() => copyMessage(true)}>Copy with my location</button><button className="ghost" onClick={() => copyMessage(false)}>Copy message only</button></div><p role="status" className="status">{status}</p>{message && <pre className="msg">{message}</pre>}<div className="row"><button className="ghost" onClick={shareLocation}>Share my location</button></div>{locationLink && <p className="status"><a href={locationLink} target="_blank" rel="noreferrer">Open my location in Maps</a></p>}</section>
     <section className="panel"><h2>My emergency note</h2><p>Save important details on this device, such as a meeting point or medical information.</p><label className="note-label" htmlFor="emergency-note">Your note <span>Saved automatically</span></label><textarea id="emergency-note" value={note} onChange={(e) => saveNote(e.target.value)} placeholder="Type your emergency details here…" rows={4}/></section>
   </>;
 }
