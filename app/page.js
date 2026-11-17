@@ -256,16 +256,20 @@ export default function Home() {
   const [listening, setListening] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("");
   const [handsFree, setHandsFree] = useState(false);
+  const [accessibilityOpen, setAccessibilityOpen] = useState(false);
   const handsFreeRef = useRef(false);
+  const introSpeakingRef = useRef(false);
   const recognitionRef = useRef(null);
-  function speak(text) {
+  function speak(text, onDone) {
     setVoiceStatus(text);
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = "en-IN";
+      utterance.onend = () => onDone?.();
+      utterance.onerror = () => onDone?.();
       window.speechSynthesis.speak(utterance);
-    }
+    } else onDone?.();
   }
   function startVoiceAssistant(continuous = false) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -287,7 +291,19 @@ export default function Home() {
     recognition.lang = "en-IN";
     recognition.continuous = continuous;
     recognition.interimResults = false;
-    recognition.onstart = () => { setListening(true); setVoiceStatus(continuous ? "Hands-free mode is on. Say Radar, guides, Go-bag, About, or emergency help. Say stop voice mode to turn it off." : "Listening. Try saying: open Radar, show guides, open Go-bag, or call emergency."); };
+    recognition.onstart = () => {
+      setListening(true);
+      if (continuous) {
+        setAccessibilityOpen(false);
+        setVoiceStatus("Hands-free mode is on. Say Radar, guides, Go-bag, About, or emergency help. Say stop voice mode to turn it off.");
+        introSpeakingRef.current = true;
+        recognition.stop();
+        speak("Hi, healer. Voice assistant is on. Say SOS, Radar, Guides, Go-bag, or About.", () => {
+          introSpeakingRef.current = false;
+          if (handsFreeRef.current) startVoiceAssistant(true);
+        });
+      } else setVoiceStatus("Listening. Try saying: open Radar, show guides, open Go-bag, or call emergency.");
+    };
     recognition.onresult = (event) => {
       if (continuous && /\bstop\b.*\bvoice\b/.test(event.results?.[event.resultIndex]?.[0]?.transcript?.toLowerCase() || "")) {
         handsFreeRef.current = false; setHandsFree(false); recognition.stop(); setListening(false); speak("Hands-free mode is off."); return;
@@ -301,16 +317,25 @@ export default function Home() {
       else { speak("I did not catch that. Say open Radar, show guides, open Go-bag, About, or emergency help."); }
     };
     recognition.onerror = (event) => { setListening(false); if (event.error === "not-allowed" || event.error === "service-not-allowed") { handsFreeRef.current = false; setHandsFree(false); speak("Microphone permission is needed. Allow it in browser settings."); } else if (!continuous) speak("I could not hear you. Tap the microphone and try again."); };
-    recognition.onend = () => { setListening(false); if (continuous && handsFreeRef.current) window.setTimeout(() => { if (handsFreeRef.current) startVoiceAssistant(true); }, 2500); };
+    recognition.onend = () => { setListening(false); if (continuous && handsFreeRef.current && !introSpeakingRef.current) window.setTimeout(() => { if (handsFreeRef.current && !introSpeakingRef.current) startVoiceAssistant(true); }, 2500); };
     try { recognition.start(); } catch { setListening(false); handsFreeRef.current = false; setHandsFree(false); speak("Voice assistant could not start. Please try again."); }
   }
   function toggleHandsFreeMode() {
+    setAccessibilityOpen(true);
+  }
+  function activateHandsFree() {
     if (handsFreeRef.current) { handsFreeRef.current = false; setHandsFree(false); recognitionRef.current?.stop(); setListening(false); speak("Hands-free mode is off."); return; }
     handsFreeRef.current = true; setHandsFree(true); startVoiceAssistant(true);
   }
+  useEffect(() => {
+    if (!accessibilityOpen) return undefined;
+    function closeOnEscape(event) { if (event.key === "Escape") setAccessibilityOpen(false); }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [accessibilityOpen]);
   useEffect(() => () => recognitionRef.current?.stop(), []);
   useEffect(() => { const saved = localStorage.getItem("saferoute-theme"); if (saved) setTheme(saved); }, []);
   useEffect(() => { if (new URLSearchParams(window.location.search).has("notification")) setTab("radar"); }, []);
   useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem("saferoute-theme", theme); } catch {} }, [theme]);
-  return <><header className="top"><a className="brand" href="#home" onClick={() => setTab("sos")} onDoubleClick={(event) => { event.preventDefault(); toggleHandsFreeMode(); }} title="Double-click S+ to toggle hands-free mode" aria-label="SafeRoutePlus. Double-click to toggle hands-free voice mode."><span className="brand-icon">S+</span><span><strong>SafeRoutePlus</strong><small>Emergency &amp; disaster guide</small></span></a><div className="header-actions"><InstallApp/><button className="voice-toggle" onClick={startVoiceAssistant} aria-pressed={listening} aria-label={listening ? "Stop voice assistant" : "Start voice assistant"}>{listening ? "■ Stop" : "🎙 Voice"}</button><button className="theme-toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "day"} mode`}>{theme === "light" ? "☾" : "☀"}<span>{theme === "light" ? "Dark" : "Day"}</span></button></div></header>{voiceStatus && <p className="voice-status" role="status" aria-live="polite">{voiceStatus}</p>}<main>{tab === "sos" && <Sos/>}{tab === "radar" && <Radar/>}{tab === "guides" && <Guides/>}{tab === "kit" && <Kit/>}{tab === "about" && <About/>}</main><nav className="nav" aria-label="Sections">{TABS.map(([id, label]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span className="nav-icon" aria-hidden="true">{{sos:"✚",radar:"⌖",guides:"▤",kit:"✓",about:"ⓘ"}[id]}</span>{label}</button>)}</nav></>;
+  return <>{accessibilityOpen && <div className="accessibility-backdrop" onMouseDown={() => setAccessibilityOpen(false)}><aside className="accessibility-panel" role="dialog" aria-modal="true" aria-labelledby="accessibility-title" onMouseDown={(event) => event.stopPropagation()}><button className="accessibility-close" onClick={() => setAccessibilityOpen(false)} aria-label="Close accessibility options">×</button><span className="accessibility-picture" aria-hidden="true">🧑‍🦽</span><span className="eyebrow">ACCESSIBILITY</span><h2 id="accessibility-title">Hands-free voice access</h2><p>Choose this option to use SafeRoutePlus with voice commands.</p><button className="accessibility-enable" onClick={activateHandsFree}>{handsFree ? "Turn off voice mode" : "Enable voice mode"}</button><p className="accessibility-hint">Your browser will ask for microphone access the first time. After you allow it, the assistant will say “Hi, healer” and listen for commands. Say “stop voice mode” to turn it off.</p></aside></div>}<header className="top"><a className="brand" href="#home" onClick={() => setTab("sos")} onDoubleClick={(event) => { event.preventDefault(); toggleHandsFreeMode(); }} title="Double-click S+ to toggle hands-free mode" aria-label="SafeRoutePlus. Double-click to toggle hands-free voice mode."><span className="brand-icon">S+</span><span><strong>SafeRoutePlus</strong><small>Emergency &amp; disaster guide</small></span></a><div className="header-actions"><InstallApp/><button className="voice-toggle" onClick={startVoiceAssistant} aria-pressed={listening} aria-label={listening ? "Stop voice assistant" : "Start voice assistant"}>{listening ? "■ Stop" : "🎙 Voice"}</button><button className="theme-toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "day"} mode`}>{theme === "light" ? "☾" : "☀"}<span>{theme === "light" ? "Dark" : "Day"}</span></button></div></header>{voiceStatus && <p className="voice-status" role="status" aria-live="polite">{voiceStatus}</p>}<main>{tab === "sos" && <Sos/>}{tab === "radar" && <Radar/>}{tab === "guides" && <Guides/>}{tab === "kit" && <Kit/>}{tab === "about" && <About/>}</main><nav className="nav" aria-label="Sections">{TABS.map(([id, label]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span className="nav-icon" aria-hidden="true">{{sos:"✚",radar:"⌖",guides:"▤",kit:"✓",about:"ⓘ"}[id]}</span>{label}</button>)}</nav></>;
 }
