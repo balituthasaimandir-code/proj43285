@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Localize } from "./i18n";
 
 export default function InstallApp() {
   const [prompt, setPrompt] = useState(null);
@@ -50,5 +51,5 @@ export default function InstallApp() {
   }
 
   const status = !online ? "Offline mode" : offlineReady ? "Offline ready" : "Preparing offline";
-  return <div className="install-wrap"><span className={`offline-status ${!online ? "offline" : offlineReady ? "ready" : "preparing"}`} role="status" title={offlineReady ? "SafeRoutePlus is saved on this device for offline use." : "Keep SafeRoutePlus open online until offline files finish downloading."}><span aria-hidden="true"/>{status}</span><button className="install-button" onClick={install}>Install app</button>{message && <p className="install-message" role="status">{message}</p>}</div>;
+  return <Localize><div className="install-wrap"><span className={`offline-status ${!online ? "offline" : offlineReady ? "ready" : "preparing"}`} role="status" title={offlineReady ? "SafeRoutePlus is saved on this device for offline use." : "Keep SafeRoutePlus open online until offline files finish downloading."}><span aria-hidden="true"/>{status}</span><button className="install-button" onClick={install}>Install app</button>{message && <p className="install-message" role="status">{message}</p>}</div></Localize>;
 }

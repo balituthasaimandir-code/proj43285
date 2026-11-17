@@ -9,6 +9,8 @@ header.top { min-height:5rem; display:flex; align-items:center; justify-content:
 .voice-toggle { display:flex;align-items:center;gap:.3rem;padding:.5rem .7rem;border:1px solid var(--line);border-radius:999px;color:var(--safe);background:var(--surface);font-size:.82rem;font-weight:800;white-space:nowrap; }
 .voice-toggle[aria-pressed="true"] { color:#fff;background:var(--safe); }
 .voice-status { max-width:48rem;margin:.5rem auto 0;padding:0 1.25rem;color:var(--safe);font-size:.82rem;font-weight:700; }
+.language-settings { display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:1rem 0;padding:.85rem 1rem;border:1px solid var(--line);border-radius:.85rem;background:var(--surface);font-weight:750; }
+.language-settings select { max-width:11rem;min-height:2.6rem;padding:.45rem .7rem;border:1px solid var(--line);border-radius:.7rem;background:var(--paper);color:var(--ink);font:inherit; }
 .accessibility-backdrop { position:fixed;z-index:20;inset:0;display:flex;align-items:stretch;background:#0008; }
 .accessibility-panel { position:relative;width:min(21rem,88vw);padding:2rem 1.4rem;background:var(--surface);color:var(--ink);box-shadow:var(--shadow);overflow-y:auto; }
 .accessibility-close { position:absolute;top:.7rem;right:.7rem;width:2.4rem;height:2.4rem;border:1px solid var(--line);border-radius:50%;background:var(--paper);color:var(--ink);font-size:1.4rem; }

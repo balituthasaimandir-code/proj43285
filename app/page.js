@@ -2,10 +2,12 @@
 import { useEffect, useRef, useState } from "react";
 import { CONTACTS, GUIDES, KIT } from "./data";
 import InstallApp from "./InstallApp";
+import { LANGUAGES, LanguageContext, Localize, translate, useLanguage } from "./i18n";
 
 const TABS = [["sos", "SOS"], ["radar", "Radar"], ["guides", "Guides"], ["kit", "Go-bag"], ["about", "About"]];
 
 function Sos() {
+  const { tx } = useLanguage();
   const [status, setStatus] = useState("");
   const [message, setMessage] = useState("");
   const [locationLink, setLocationLink] = useState("");
@@ -44,18 +46,19 @@ function Sos() {
   const [note, setNote] = useState("");
   useEffect(() => { setNote(localStorage.getItem("saferoute-note") || ""); }, []);
   function saveNote(value) { setNote(value); try { localStorage.setItem("saferoute-note", value); } catch {} }
-  return <>
+  return <Localize><>
     <section className="hero emergency-hero">
       <div><span className="eyebrow">NEED HELP NOW?</span><h2>Emergency help</h2><p>Call the national emergency number or choose a service below.</p></div>
       <a className="sos-button" href={`tel:${CONTACTS.find((c) => c.primary)?.number || "112"}`}><span aria-hidden>☎</span> CALL SOS <small>{CONTACTS.find((c) => c.primary)?.number || "112"}</small></a>
     </section>
-    <section><h2>Emergency numbers</h2><ul className="contacts">{CONTACTS.map((c) => <li key={c.number}><a className={c.primary ? "call primary" : "call"} href={`tel:${c.number}`}><span>{c.label}{c.note && <small>{c.note}</small>}</span><strong>{c.number}</strong></a></li>)}</ul></section>
+    <section><h2>Emergency numbers</h2><ul className="contacts">{CONTACTS.map((c) => <li key={c.number}><a className={c.primary ? "call primary" : "call"} href={`tel:${c.number}`}><span>{tx(c.label)}{c.note && <small>{tx(c.note)}</small>}</span><strong>{c.number}</strong></a></li>)}</ul></section>
     <section className="panel"><h2>Generate an SOS message</h2><p>Copy a ready-made distress message to share with family or responders.</p><div className="row"><button onClick={() => copyMessage(true)}>Copy with my location</button><button className="ghost" onClick={() => copyMessage(false)}>Copy message only</button></div><p role="status" className="status">{status}</p>{message && <pre className="msg">{message}</pre>}<div className="row"><button className="ghost" onClick={shareLocation}>Share my location</button></div>{locationLink && <p className="status"><a href={locationLink} target="_blank" rel="noreferrer">Open my location in Maps</a></p>}</section>
     <section className="panel"><h2>My emergency note</h2><p>Save important details on this device, such as a meeting point or medical information.</p><label className="note-label" htmlFor="emergency-note">Your note <span>Saved automatically</span></label><textarea id="emergency-note" value={note} onChange={(e) => saveNote(e.target.value)} placeholder="Type your emergency details here…" rows={4}/></section>
-  </>;
+  </></Localize>;
 }
 
 function Radar() {
+  const { tx } = useLanguage();
   const [position, setPosition] = useState(null);
   const [radiusKm, setRadiusKm] = useState(100);
   const [events, setEvents] = useState([]);
@@ -137,7 +140,7 @@ function Radar() {
   const typeInfo = { EQ: ["Earthquake", "〰️"], TC: ["Cyclone", "🌀"], FL: ["Flood", "🌊"], WF: ["Wildfire", "🔥"], VO: ["Volcano", "🌋"] };
   const locationUrl = position ? `https://maps.google.com/?q=${position.latitude},${position.longitude}` : "#";
 
-  return <section>
+  return <Localize><section>
     <div className="radar-head"><div><span className="eyebrow">LIVE HAZARD RADAR</span><h2>Nearby reported hazards</h2><p>Check official event reports around your current location.</p></div><div className="radar-art" aria-hidden="true"><span>⌖</span><i/><b/></div></div>
     <div className="panel radar-panel">
       <div className="radar-controls"><button onClick={locate}>{position ? "Refresh my location" : "Use my location"}</button><label>Search radius<select value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))}><option value={100}>100 km</option><option value={250}>250 km</option><option value={500}>500 km</option></select></label></div>
@@ -154,7 +157,7 @@ function Radar() {
     </div>
     <NotificationControls position={position}/>
     <div className="notice"><strong>Reports are not predictions</strong><p>Earthquakes cannot currently be predicted. These feeds show reported events, not a forecast that a disaster will reach you. Distance is measured from the reported location and does not describe the affected area. Follow official instructions.</p><strong>Official India alerts</strong><p className="official-links"><a href="https://sachet.ndma.gov.in/" target="_blank" rel="noreferrer">NDMA SACHET alerts</a><a href="https://mausam.imd.gov.in/" target="_blank" rel="noreferrer">IMD weather warnings</a><a href="https://tsunami.incois.gov.in/" target="_blank" rel="noreferrer">INCOIS tsunami alerts</a><a href="https://www.gdacs.org/" target="_blank" rel="noreferrer">GDACS global alerts</a></p></div>
-  </section>;
+  </section></Localize>;
 }
 
 function base64UrlToBytes(value) {
@@ -165,6 +168,7 @@ function base64UrlToBytes(value) {
 }
 
 function NotificationControls({ position }) {
+  const { tx } = useLanguage();
   const [configured, setConfigured] = useState(false);
   const [publicKey, setPublicKey] = useState("");
   const [enabled, setEnabled] = useState(false);
@@ -230,29 +234,34 @@ function NotificationControls({ position }) {
     } catch { setMessage("Could not show the demo. Check your browser notification settings."); }
   }
 
-  return <div className="panel notification-panel"><span className="eyebrow">BACKGROUND ALERTS</span><h3>500 km notifications</h3><p>Get a push notification for new nearby reports, including when SafeRoutePlus is closed. Your saved location is stored to calculate the distance.</p><div className="row">{enabled ? <button className="ghost" onClick={disable}>Turn off alerts</button> : <button disabled={!position || !configured} onClick={enable}>{!position ? "Locate yourself first" : configured ? "Enable automatic alerts" : "Push setup required"}</button>}<button className="ghost" onClick={demo}>Send demo notification</button></div>{message && <p role="status" className="status">{message}</p>}{!configured && <p className="setup-note">Closed-app delivery needs server keys and an active scheduled monitor. The demo works without them.</p>}</div>;
+  return <Localize><div className="panel notification-panel"><span className="eyebrow">BACKGROUND ALERTS</span><h3>500 km notifications</h3><p>Get a push notification for new nearby reports, including when SafeRoutePlus is closed. Your saved location is stored to calculate the distance.</p><div className="row">{enabled ? <button className="ghost" onClick={disable}>Turn off alerts</button> : <button disabled={!position || !configured} onClick={enable}>{!position ? "Locate yourself first" : configured ? "Enable automatic alerts" : "Push setup required"}</button>}<button className="ghost" onClick={demo}>Send demo notification</button></div>{message && <p role="status" className="status">{message}</p>}{!configured && <p className="setup-note">Closed-app delivery needs server keys and an active scheduled monitor. The demo works without them.</p>}</div></Localize>;
 }
 
 function Guides() {
+  const { tx } = useLanguage();
   const [key, setKey] = useState("Earthquake"); const g = GUIDES[key];
-  return <section><span className="eyebrow">BE PREPARED</span><h2>Disaster guides</h2><div className="disaster-grid">{Object.entries(GUIDES).map(([name, v]) => <button key={name} className={`disaster-card ${key === name ? "selected" : ""} art-${v.art}`} onClick={() => setKey(name)} aria-pressed={key === name}><span className="disaster-art" aria-hidden="true">{v.icon}</span><strong>{name}</strong><span className="card-arrow">↗</span></button>)}</div><div className="guide-detail"><span className="eyebrow">{g.tagline}</span><h2>{g.icon} {key}</h2><ol className="steps">{g.steps.map(([title, body]) => <li key={title}><h3>{title}</h3><p>{body}</p></li>)}</ol></div></section>;
+  return <Localize><section><span className="eyebrow">BE PREPARED</span><h2>Disaster guides</h2><div className="disaster-grid">{Object.entries(GUIDES).map(([name, v]) => <button key={name} className={`disaster-card ${key === name ? "selected" : ""} art-${v.art}`} onClick={() => setKey(name)} aria-pressed={key === name}><span className="disaster-art" aria-hidden="true">{v.icon}</span><strong>{tx(name)}</strong><span className="card-arrow">↗</span></button>)}</div><div className="guide-detail"><span className="eyebrow">{tx(g.tagline)}</span><h2>{g.icon} {tx(key)}</h2><ol className="steps">{g.steps.map(([title, body]) => <li key={title}><h3>{tx(title)}</h3><p>{tx(body)}</p></li>)}</ol></div></section></Localize>;
 }
 
 function Kit() {
+  const { tx } = useLanguage();
   const [done, setDone] = useState({}); const [ready, setReady] = useState(false);
   useEffect(() => { try { setDone(JSON.parse(localStorage.getItem("saferoute-kit") || "{}")); } catch {} setReady(true); }, []);
   useEffect(() => { if (ready) try { localStorage.setItem("saferoute-kit", JSON.stringify(done)); } catch {} }, [done, ready]);
   const count = KIT.filter((i) => done[i]).length;
-  return <section><span className="eyebrow">PACK AHEAD</span><h2>Go-bag checklist</h2><p>Tick items off as you pack them. Your progress is saved on this device.</p><div className="meter" role="progressbar" aria-valuemin={0} aria-valuemax={KIT.length} aria-valuenow={count}><div style={{ width: `${(count / KIT.length) * 100}%` }} /></div><p className="count">{count} of {KIT.length} packed</p><ul className="kit">{KIT.map((item) => <li key={item}><label><input type="checkbox" checked={!!done[item]} onChange={(e) => setDone({ ...done, [item]: e.target.checked })}/><span>{item}</span></label></li>)}</ul>{count === KIT.length && <p className="done">Your go-bag is fully packed.</p>}{count > 0 && <button className="ghost" onClick={() => setDone({})}>Reset checklist</button>}</section>;
+  return <Localize><section><span className="eyebrow">PACK AHEAD</span><h2>Go-bag checklist</h2><p>Tick items off as you pack them. Your progress is saved on this device.</p><div className="meter" role="progressbar" aria-valuemin={0} aria-valuemax={KIT.length} aria-valuenow={count}><div style={{ width: `${(count / KIT.length) * 100}%` }} /></div><p className="count">{tx("{count} of {total} packed").replace("{count}", count).replace("{total}", KIT.length)}</p><ul className="kit">{KIT.map((item) => <li key={item}><label><input type="checkbox" checked={!!done[item]} onChange={(e) => setDone({ ...done, [item]: e.target.checked })}/><span>{tx(item)}</span></label></li>)}</ul>{count === KIT.length && <p className="done">Your go-bag is fully packed.</p>}{count > 0 && <button className="ghost" onClick={() => setDone({})}>Reset checklist</button>}</section></Localize>;
 }
 
 function About() {
+  const { lang, setLang, tx } = useLanguage();
   const url = "https://saferouteplus.vercel.app";
-  return <section><span className="eyebrow">ABOUT THIS PROJECT</span><h2>SafeRoutePlus</h2><div className="about-card"><div className="about-copy"><span className="about-mark">S+</span><h3>Made to help in an emergency.</h3><p>A quick access companion for emergency calls, SOS messages, disaster guidance and preparedness.</p><p className="creator-name">Sai Sankar Dash</p></div><div className="qr-card"><h3>Open SafeRoutePlus</h3><a href={url} target="_blank" rel="noreferrer"><img src="/newappqr.png" alt={`QR code linking to ${url}`} width="180" height="180"/></a><a href={url} target="_blank" rel="noreferrer">{url}</a><small>Scan with your phone camera</small></div></div><div className="notice"><strong>Share SafeRoutePlus</strong><p>Scan the QR code or visit <a href={url} target="_blank" rel="noreferrer">saferouteplus.vercel.app</a>.</p></div></section>;
+  return <Localize><section><span className="eyebrow">ABOUT THIS PROJECT</span><h2>SafeRoutePlus</h2><div className="about-card"><div className="about-copy"><span className="about-mark">S+</span><h3>Made to help in an emergency.</h3><p>A quick access companion for emergency calls, SOS messages, disaster guidance and preparedness.</p><p className="creator-name">Sai Sankar Dash</p></div><div className="qr-card"><h3>Open SafeRoutePlus</h3><a href={url} target="_blank" rel="noreferrer"><img src="/newappqr.png" alt={`QR code linking to ${url}`} width="180" height="180"/></a><a href={url} target="_blank" rel="noreferrer">{url}</a><small>Scan with your phone camera</small></div></div><section className="language-settings"><label htmlFor="app-language">{tx("Language settings")}</label><select id="app-language" value={lang} onChange={(event) => setLang(event.target.value)}>{LANGUAGES.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></section><div className="notice"><strong>Share SafeRoutePlus</strong><p>Scan the QR code or visit <a href={url} target="_blank" rel="noreferrer">saferouteplus.vercel.app</a>.</p></div></section></Localize>;
 }
 
 export default function Home() {
   const [tab, setTab] = useState("sos"); const [theme, setTheme] = useState("light");
+  const [lang, setLang] = useState("en");
+  const tx = (text) => translate(lang, text);
   const [listening, setListening] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("");
   const [handsFree, setHandsFree] = useState(false);
@@ -335,7 +344,9 @@ export default function Home() {
   }, [accessibilityOpen]);
   useEffect(() => () => recognitionRef.current?.stop(), []);
   useEffect(() => { const saved = localStorage.getItem("saferoute-theme"); if (saved) setTheme(saved); }, []);
+  useEffect(() => { const saved = localStorage.getItem("saferoute-language"); if (saved && LANGUAGES.some((item) => item.code === saved)) setLang(saved); }, []);
+  useEffect(() => { document.documentElement.lang = LANGUAGES.find((item) => item.code === lang)?.document || "en"; try { localStorage.setItem("saferoute-language", lang); } catch {} }, [lang]);
   useEffect(() => { if (new URLSearchParams(window.location.search).has("notification")) setTab("radar"); }, []);
   useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem("saferoute-theme", theme); } catch {} }, [theme]);
-  return <>{accessibilityOpen && <div className="accessibility-backdrop" onMouseDown={() => setAccessibilityOpen(false)}><aside className="accessibility-panel" role="dialog" aria-modal="true" aria-labelledby="accessibility-title" onMouseDown={(event) => event.stopPropagation()}><button className="accessibility-close" onClick={() => setAccessibilityOpen(false)} aria-label="Close accessibility options">×</button><span className="accessibility-picture" aria-hidden="true">🧑‍🦽</span><span className="eyebrow">ACCESSIBILITY</span><h2 id="accessibility-title">Hands-free voice access</h2><p>Choose this option to use SafeRoutePlus with voice commands.</p><button className="accessibility-enable" onClick={activateHandsFree}>{handsFree ? "Turn off voice mode" : "Enable voice mode"}</button><p className="accessibility-hint">Your browser will ask for microphone access the first time. After you allow it, the assistant will say “Hi, healer” and listen for commands. Say “stop voice mode” to turn it off.</p></aside></div>}<header className="top"><a className="brand" href="#home" onClick={() => setTab("sos")} onDoubleClick={(event) => { event.preventDefault(); toggleHandsFreeMode(); }} title="Double-click S+ to toggle hands-free mode" aria-label="SafeRoutePlus. Double-click to toggle hands-free voice mode."><span className="brand-icon">S+</span><span><strong>SafeRoutePlus</strong><small>Emergency &amp; disaster guide</small></span></a><div className="header-actions"><InstallApp/><button className="voice-toggle" onClick={startVoiceAssistant} aria-pressed={listening} aria-label={listening ? "Stop voice assistant" : "Start voice assistant"}>{listening ? "■ Stop" : "🎙 Voice"}</button><button className="theme-toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "day"} mode`}>{theme === "light" ? "☾" : "☀"}<span>{theme === "light" ? "Dark" : "Day"}</span></button></div></header>{voiceStatus && <p className="voice-status" role="status" aria-live="polite">{voiceStatus}</p>}<main>{tab === "sos" && <Sos/>}{tab === "radar" && <Radar/>}{tab === "guides" && <Guides/>}{tab === "kit" && <Kit/>}{tab === "about" && <About/>}</main><nav className="nav" aria-label="Sections">{TABS.map(([id, label]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span className="nav-icon" aria-hidden="true">{{sos:"✚",radar:"⌖",guides:"▤",kit:"✓",about:"ⓘ"}[id]}</span>{label}</button>)}</nav></>;
+  return <>{accessibilityOpen && <div className="accessibility-backdrop" onMouseDown={() => setAccessibilityOpen(false)}><aside className="accessibility-panel" role="dialog" aria-modal="true" aria-labelledby="accessibility-title" onMouseDown={(event) => event.stopPropagation()}><button className="accessibility-close" onClick={() => setAccessibilityOpen(false)} aria-label="Close accessibility options">×</button><span className="accessibility-picture" aria-hidden="true">🧑‍🦽</span><span className="eyebrow">ACCESSIBILITY</span><h2 id="accessibility-title">Hands-free voice access</h2><p>Choose this option to use SafeRoutePlus with voice commands.</p><button className="accessibility-enable" onClick={activateHandsFree}>{handsFree ? "Turn off voice mode" : "Enable voice mode"}</button><p className="accessibility-hint">Your browser will ask for microphone access the first time. After you allow it, the assistant will say “Hi, healer” and listen for commands. Say “stop voice mode” to turn it off.</p></aside></div>}<header className="top"><a className="brand" href="#home" onClick={() => setTab("sos")} onDoubleClick={(event) => { event.preventDefault(); toggleHandsFreeMode(); }} title="Double-click S+ to toggle hands-free mode" aria-label="SafeRoutePlus. Double-click to toggle hands-free voice mode."><span className="brand-icon">S+</span><span><strong>SafeRoutePlus</strong><small>Emergency &amp; disaster guide</small></span></a><div className="header-actions"><InstallApp/><button className="voice-toggle" onClick={startVoiceAssistant} aria-pressed={listening} aria-label={listening ? "Stop voice assistant" : "Start voice assistant"}>{listening ? "■ Stop" : "🎙 Voice"}</button><button className="theme-toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "day"} mode`}>{theme === "light" ? "☾" : "☀"}<span>{theme === "light" ? "Dark" : "Day"}</span></button></div></header>{voiceStatus && <p className="voice-status" role="status" aria-live="polite">{voiceStatus}</p>}<main>{tab === "sos" && <Sos/>}{tab === "radar" && <Radar/>}{tab === "guides" && <Guides/>}{tab === "kit" && <Kit/>}{tab === "about" && <About/>}</main><nav className="nav" aria-label="Sections">{TABS.map(([id, label]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span className="nav-icon" aria-hidden="true">{{sos:"✚",radar:"⌖",guides:"▤",kit:"✓",about:"ⓘ"}[id]}</span>{label}</button>)}</nav></></Localize></LanguageContext.Provider>;
 }
