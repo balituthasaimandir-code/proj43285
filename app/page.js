@@ -153,7 +153,7 @@ function Radar() {
       {sources && <p className="source-status">Sources: {sources.gdacs ? "GDACS global hazards" : "GDACS unavailable"} · {sources.usgs ? "USGS earthquakes" : "USGS unavailable"}</p>}
     </div>
     <NotificationControls position={position}/>
-    <div className="notice"><strong>Reports are not predictions</strong><p>Earthquakes cannot currently be predicted. These feeds show reported events, not a forecast that a disaster will reach you. Distance is measured from the reported location and does not describe the affected area. Follow official instructions.</p><p className="official-links"><a href="https://sachet.ndma.gov.in/" target="_blank" rel="noreferrer">India NDMA SACHET alerts</a><a href="https://www.gdacs.org/" target="_blank" rel="noreferrer">GDACS global alerts</a></p></div>
+    <div className="notice"><strong>Reports are not predictions</strong><p>Earthquakes cannot currently be predicted. These feeds show reported events, not a forecast that a disaster will reach you. Distance is measured from the reported location and does not describe the affected area. Follow official instructions.</p><strong>Official India alerts</strong><p className="official-links"><a href="https://sachet.ndma.gov.in/" target="_blank" rel="noreferrer">NDMA SACHET alerts</a><a href="https://mausam.imd.gov.in/" target="_blank" rel="noreferrer">IMD weather warnings</a><a href="https://tsunami.incois.gov.in/" target="_blank" rel="noreferrer">INCOIS tsunami alerts</a><a href="https://www.gdacs.org/" target="_blank" rel="noreferrer">GDACS global alerts</a></p></div>
   </section>;
 }
 
