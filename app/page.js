@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CONTACTS, GUIDES, KIT } from "./data";
 import InstallApp from "./InstallApp";
 
@@ -253,8 +253,52 @@ function About() {
 
 export default function Home() {
   const [tab, setTab] = useState("sos"); const [theme, setTheme] = useState("light");
+  const [listening, setListening] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState("");
+  const recognitionRef = useRef(null);
+  function speak(text) {
+    setVoiceStatus(text);
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "en-IN";
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+  function startVoiceAssistant() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      speak("Voice recognition is not supported by this browser. Try the latest Chrome or Edge.");
+      return;
+    }
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      setVoiceStatus("Voice assistant stopped.");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.lang = "en-IN";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onstart = () => { setListening(true); setVoiceStatus("Listening. Try saying: open Radar, show guides, open Go-bag, or call emergency."); };
+    recognition.onresult = (event) => {
+      const command = event.results?.[0]?.[0]?.transcript?.toLowerCase() || "";
+      if (/\b(radar|nearby|hazard|alerts?)\b/.test(command)) { setTab("radar"); speak("Opening Radar."); }
+      else if (/\b(guide|earthquake|flood|fire|cyclone|tsunami|disaster)\b/.test(command)) { setTab("guides"); speak("Opening disaster guides. Choose the guide you need."); }
+      else if (/\b(go.?bag|checklist|kit|supplies)\b/.test(command)) { setTab("kit"); speak("Opening the Go-bag checklist."); }
+      else if (/\b(about|project|creator)\b/.test(command)) { setTab("about"); speak("Opening About."); }
+      else if (/\b(sos|emergency|call|ambulance|police)\b/.test(command)) { setTab("sos"); speak("Opening emergency help. Tap an emergency number to place a call."); }
+      else { speak("I did not catch that. Say open Radar, show guides, open Go-bag, About, or emergency help."); }
+    };
+    recognition.onerror = (event) => { setListening(false); speak(event.error === "not-allowed" ? "Microphone permission was denied. Allow it in your browser settings." : "I could not hear you. Tap the microphone and try again."); };
+    recognition.onend = () => setListening(false);
+    try { recognition.start(); } catch { setListening(false); speak("Voice assistant could not start. Please try again."); }
+  }
+  useEffect(() => () => recognitionRef.current?.stop(), []);
   useEffect(() => { const saved = localStorage.getItem("saferoute-theme"); if (saved) setTheme(saved); }, []);
   useEffect(() => { if (new URLSearchParams(window.location.search).has("notification")) setTab("radar"); }, []);
   useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem("saferoute-theme", theme); } catch {} }, [theme]);
-  return <><header className="top"><a className="brand" href="#home" onClick={() => setTab("sos")}><span className="brand-icon">S+</span><span><strong>SafeRoutePlus</strong><small>Emergency &amp; disaster guide</small></span></a><div className="header-actions"><InstallApp/><button className="theme-toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "day"} mode`}>{theme === "light" ? "☾" : "☀"}<span>{theme === "light" ? "Dark" : "Day"}</span></button></div></header><main>{tab === "sos" && <Sos/>}{tab === "radar" && <Radar/>}{tab === "guides" && <Guides/>}{tab === "kit" && <Kit/>}{tab === "about" && <About/>}</main><nav className="nav" aria-label="Sections">{TABS.map(([id, label]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span className="nav-icon" aria-hidden="true">{{sos:"✚",radar:"⌖",guides:"▤",kit:"✓",about:"ⓘ"}[id]}</span>{label}</button>)}</nav></>;
+  return <><header className="top"><a className="brand" href="#home" onClick={() => setTab("sos")}><span className="brand-icon">S+</span><span><strong>SafeRoutePlus</strong><small>Emergency &amp; disaster guide</small></span></a><div className="header-actions"><InstallApp/><button className="voice-toggle" onClick={startVoiceAssistant} aria-pressed={listening} aria-label={listening ? "Stop voice assistant" : "Start voice assistant"}>{listening ? "■ Stop" : "🎙 Voice"}</button><button className="theme-toggle" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={`Switch to ${theme === "light" ? "dark" : "day"} mode`}>{theme === "light" ? "☾" : "☀"}<span>{theme === "light" ? "Dark" : "Day"}</span></button></div></header>{voiceStatus && <p className="voice-status" role="status" aria-live="polite">{voiceStatus}</p>}<main>{tab === "sos" && <Sos/>}{tab === "radar" && <Radar/>}{tab === "guides" && <Guides/>}{tab === "kit" && <Kit/>}{tab === "about" && <About/>}</main><nav className="nav" aria-label="Sections">{TABS.map(([id, label]) => <button key={id} aria-current={tab === id ? "page" : undefined} onClick={() => setTab(id)}><span className="nav-icon" aria-hidden="true">{{sos:"✚",radar:"⌖",guides:"▤",kit:"✓",about:"ⓘ"}[id]}</span>{label}</button>)}</nav></>;
 }
